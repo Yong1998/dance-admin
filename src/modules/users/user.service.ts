@@ -11,34 +11,21 @@ export class UserService {
   async createUser(user: CreateUserDto): Promise<any> {
     const result = {
       isSuccess: true,
-      data: {
-        code: 0,
-        data: null,
-        message: '创建成功',
-      }
+      message: '请求成功',
+      data: null
     }
-
-    if(!user.account || !user.password) {
+    const queryUser = await this.userModel.find({account: user.account}).exec()
+    if(queryUser.length) {
       result.isSuccess = false
-      result.data.code = -1
-      result.data.message = '账号密码不能为空'
+      result.message = '账号已存在11'
       return Promise.resolve(result)
     } else {
-      const queryUser = await this.userModel.find({account: user.account}).exec()
-      if(queryUser.length) {
-        result.isSuccess = false
-        result.data.code = -1
-        result.data.message = '账号已存在'
-        return Promise.resolve(result)
-      } else {
-        const createUser = new this.userModel(user)
-        const res = await createUser.save()
-        result.isSuccess = true
-        result.data.code = 0
-        result.data.message = '注册成功'
-        result.data.data = res
-        return Promise.resolve(result)
-      }
+      const createUser = new this.userModel(user)
+      const res = await createUser.save()
+      result.isSuccess = true
+      result.message = '注册成功'
+      result.data = res
+      return Promise.resolve(result)
     }
   }
 }
