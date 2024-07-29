@@ -20,21 +20,26 @@
   
   使用守卫Guard - authGuard
 
-  自定义public装饰器, 允许白名单接口访问 isPublic
+  自定义public装饰器, 允许白名单接口如创建用户接口, 登录接口访问 isPublic
 ```
 
 待完成功能
 User 用户表
-  account
-  passwordHash
-  username
-  email
+account
+passwordHash
+usernam
+email
+Role 角色表
+Permission 权限表
+
 1. 用户注册/登录/权限
    1.1 注册接口 create
-    account password username email 
+   account password username email
 
    1.2 登录 login jwt鉴权
-    account password
+   account password
 
    1.3 重置密码 resetPassword
-    id oldPassword newPassword
+   id oldPassword newPassword
+
+   1.4 权限设计 - 授权(RBAC)
