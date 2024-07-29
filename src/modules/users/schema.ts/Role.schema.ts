@@ -20,11 +20,8 @@ export class Role {
   // 状态
   @Prop({default: 1})
   status: number
-  // 关联用户
-  @Prop({ type: [{type: mongoose.Schema.Types.ObjectId, ref: 'Users'}]})
-  users: mongoose.Schema.Types.ObjectId[];
   // 关联权限
-  @Prop({ type: [{type: mongoose.Schema.Types.ObjectId, ref: 'Permissions'}]})
+  @Prop({ type: [{type: mongoose.Schema.Types.ObjectId, ref: 'Permission'}]})
   permissions: mongoose.Schema.Types.ObjectId[];
 }
 

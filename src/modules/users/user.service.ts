@@ -7,12 +7,15 @@ import * as bcrypt from 'bcrypt'
 import { AuthService } from '../auth/auth.service';
 import { Role } from './schema.ts/Role.schema';
 import * as mongoose from 'mongoose';
+import { PermissionDto } from './dto/perssiom.dto';
+import { Permission } from './schema.ts/Permission.schema';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Role.name) private roleModel: Model<Role>,
+    @InjectModel(Permission.name) private permissionModel: Model<Permission>,
     private readonly authService: AuthService
   ) {}
 
@@ -141,5 +144,28 @@ export class UserService {
       result.data = res
       return Promise.resolve(result)
     }
+  }
+
+  async createPermission(permission:PermissionDto) {
+    const result = {
+      isSuccess: true,
+      message: '请求成功',
+      data: null
+    }
+
+    const createRole = new this.permissionModel({
+      _id: new mongoose.Types.ObjectId(),
+      parentId: permission.level===1?null:permission.parentId,
+      name: permission.name,
+      path: permission.path,
+      type: permission.type,
+      remark: permission.remark,
+      status: permission.status,
+      level: permission.level,
+      sort: permission.sort
+    })
+    const res = await createRole.save()
+    result.data = res
+    return Promise.resolve(result)
   }
 }

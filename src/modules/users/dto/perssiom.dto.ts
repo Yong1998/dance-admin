@@ -1,15 +1,12 @@
-export class PermissionsCreateDto {
+export class PermissionDto {
+  parentId: number;
   name: string;
-  description: string;
-  resourceType: string;
-  resourceId: string;
-  parent: string;
-  path: string;
   icon: string;
-  level: number;
+  path: string;
+  type: string;
   sort: number;
   status: number;
-  createdTime: Date;
-  updatedTime: Date;
   remark: string;
+
+  level: number;
 }
