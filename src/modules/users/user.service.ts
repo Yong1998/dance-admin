@@ -1,14 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { UserCreateDto, UserLoginDto, UserResetPasswordDto } from './dto/user.dto';
+import { UserDto, UserQueryDto, UserUpdateDto } from './dto/user.dto';
 import { User } from './schema.ts/User.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt'
-import { AuthService } from '../auth/auth.service';
+import { isEmpty } from 'lodash';
+// import { AuthService } from '../auth/auth.service';
 import { Role } from './schema.ts/Role.schema';
 import * as mongoose from 'mongoose';
-import { PermissionDto } from './dto/perssiom.dto';
+import { PermissionDto } from './dto/permission.dto';
 import { Permission } from './schema.ts/Permission.schema';
+import { RegisterDto } from '../auth/dto/auth.dto';
+import { BusinessException } from 'src/common/exceptions/biz.exception';
+import { ErrorEnum } from 'src/constants/error-code.constant';
+import { generateUUID, sleep } from '~/utils/tool.uitl';
 
 @Injectable()
 export class UserService {
@@ -16,156 +21,154 @@ export class UserService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Role.name) private roleModel: Model<Role>,
     @InjectModel(Permission.name) private permissionModel: Model<Permission>,
-    private readonly authService: AuthService
   ) {}
 
-  async createUser(user: UserCreateDto): Promise<Serv.Res> {
-    const result = {
-      isSuccess: true,
-      message: '请求成功',
-      data: null
+  async register({account, ...data}:RegisterDto): Promise<void> {
+    const exists = await this.userModel.findOne({account}).exec()
+    if(exists) {
+      throw new BusinessException(ErrorEnum.SYSTEM_USER_EXISTS)
+    } 
+
+    const passwordHash = await bcrypt.hash(data.password, 10)
+    const u = {
+      account,
+      username: data.username,
+      passwordHash,
     }
-    const queryUser = await this.userModel.find({account: user.account}).exec()
-    if(queryUser.length) {
-      result.isSuccess = false
-      result.message = '账zzsA号已存在'
-      return Promise.resolve(result)
-    } else {
-      user.password = await bcrypt.hash(user.password, 10)
-      const createUser = new this.userModel({
-        account: user.account,
-        username: user.username,
-        passwordHash: user.password,
-        email: user.email
-      })
-      const res = await createUser.save()
-      result.isSuccess = true
-      result.data = res
-      return Promise.resolve(result)
+    const user = new this.userModel(u)
+    await user.save()
+  }
+
+  async create({account, password, roles, ...user}: UserDto): Promise<void> {
+    const exists = await this.userModel.findOne({account: account}).exec()
+    if(!isEmpty(exists)) {
+      throw new BusinessException(ErrorEnum.SYSTEM_USER_EXISTS)
+    } 
+    if(!password) {
+      // 默认密码
+      password = '12345678'
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10)
+    const u = {
+      account,
+      passwordHash,
+      roles: roles || [],
+      ...user
+    }
+    const newUser = new this.userModel(u)
+    await newUser.save()
+  }
+
+  async info(id:string): Promise<User> {
+    const user = await this.userModel.findById(id).exec()
+    delete user.passwordHash
+    return user
+  }
+
+  async list ({ page = 1, pageSize = 10 }: UserQueryDto) {
+
+    // 普通查询分页
+    page = Number(page)
+    pageSize = Number(pageSize)
+    const skip = (page - 1) * pageSize
+    // // 获取上一页最后一条数据
+    // const lastId = await this.userModel.findOne().sort({_id: 1}).skip(skip).exec() 
+    // const result = await this.userModel.find({
+    //   _id: { $gte: lastId._id?lastId._id:null }
+    // }).sort({_id: 1}).limit(pageSize).exec()
+
+    // 使用聚合查询实现上述功能
+    const lastId = await this.userModel.findOne().sort({_id: 1}).skip(skip).exec()
+    const result = await this.userModel.aggregate([
+      {
+        $match: {
+          _id: { $gte: lastId._id?lastId._id:null }
+        }
+      },
+      {
+        $sort: {
+          _id: 1
+        }
+      },
+      {
+        $limit: pageSize
+      }
+    ]).exec()
+  
+
+
+    const total = await this.userModel.countDocuments().exec()
+    return {
+      list: result,
+      total
     }
   }
 
-  async login(params: UserLoginDto) : Promise<Serv.Res> {
-    const result = {
-      isSuccess: true,
-      message: '请求成功',
-      data: null
+  async update(id: string, user: UserUpdateDto): Promise<void> {
+    const u = await this.userModel.findById(id).exec()
+    if(!u) {
+      throw new BusinessException(ErrorEnum.USER_NOT_FOUND)
     }
-    const user = await this.userModel.findOne({account: params.account}).exec()
-    if(user && await bcrypt.compare(params.password, user.passwordHash)) {
-      result.isSuccess = true
-      const { passwordHash, ...data } = user.toObject()
-      const token = this.authService.createToken(data)
-      result.data = token
-      return Promise.resolve(result)
-    } else {
-      result.isSuccess = false
-      result.message = '账号或密码错误'
-      return Promise.resolve(result)
+    const { account, password, roles, ...data } = user
+    if(account) {
+      const exists = await this.userModel.findOne({account}).exec()
+      if(exists && exists._id.toString() !== id) {
+        throw new BusinessException(ErrorEnum.SYSTEM_USER_EXISTS)
+      }
+      u.account = account
     }
+    if(password) {
+      u.passwordHash = await bcrypt.hash(password, 10)
+    }
+    if(roles) {
+      u.roles = roles
+    }
+    for(const key in data) {
+      u[key] = data[key]
+    }
+    await u.save()
   }
 
-  async resetPassword(params: UserResetPasswordDto): Promise<Serv.Res> {
-    const result = {
-      isSuccess: true,
-      message: '请求成功',
-      data: null
-    }
-    const queryUser = await this.userModel.findOne({_id: params.id}).exec()
-    if(queryUser && await bcrypt.compare(params.oldPassword, queryUser.passwordHash)) {
-      queryUser.passwordHash = await bcrypt.hash(params.newPassword, 10)
-      const res = await queryUser.save()
-      result.data = res
-      return Promise.resolve(result)
-    } else {
-      result.isSuccess = false
-      result.message = '用户不存在或密码错误'
-      return Promise.resolve(result)
-    }
+  async delete(ids: string[]): Promise<void> {
+    await this.userModel.deleteMany({_id: { $in: ids }}).exec()
   }
 
-  async updateRole (userId:string, roleIds:mongoose.Schema.Types.ObjectId[]): Promise<Serv.Res> {
-    const result = {
-      isSuccess: true,
-      message: '请求成功',
-      data: null
+  async forceUpdatePassword(id: string, password: string): Promise<void> {
+    const u = await this.userModel.findById(id).exec()
+    if(!u) {
+      throw new BusinessException(ErrorEnum.USER_NOT_FOUND)
     }
-    const user = await this.userModel.findOne({_id: userId}).exec()
-    if(user) {
-      // user.roles = roleIds
-      // const res = await user.save()
-      // result.data = res
-      return Promise.resolve(result)
-    } else {
-      result.isSuccess = false
-      result.message = '用户不存在'
-      return Promise.resolve(result)
-    }
+    u.passwordHash = await bcrypt.hash(password, 10)
+    await u.save()
   }
 
-  async queryUser(userId: string): Promise<Serv.Res> {
-    const result = {
-      isSuccess: true,
-      message: '请求成功',
-      data: null
-    }
-    const user = await this.userModel.findOne({_id: userId }).populate('roles').exec()
 
-    if(user) {
-      result.data = user
-      return Promise.resolve(result)
-    } else {
-      result.isSuccess = false
-      result.message = '用户不存在'
-      return Promise.resolve(result)
+
+
+  /** 插入随机用户数据 */
+  async setRandomUsers(number = 10) {
+    const users = []
+    for(let i = 0; i < number; i++) {
+      const randomStr = generateUUID(5)
+      const user = {
+        account: `${randomStr}`,
+        username: `${randomStr}`,
+        passwordHash: await bcrypt.hash('123456', 10),
+        phone: `1325055501/${i}`,
+        email: '',
+        roles: [],
+        status: 1
+      }
+      users.push(user)
     }
+    const res = await this.userModel.insertMany(users)
+    return res
   }
-
-  async createRole(role: Role): Promise<Serv.Res> {
-    const result = {
-      isSuccess: true,
-      message: '请求成功',
-      data: null
-    }
-    const queryRole = await this.roleModel.find({name: role.name}).exec()
-    if(queryRole.length) {
-      result.isSuccess = false
-      result.message = '角色已存在'
-      return Promise.resolve(result)
-    } else {
-      const createRole = new this.roleModel({
-        name: role.name,
-        key: role.key,
-        remark: role.remark,
-        status: role.status,
-        _id: new mongoose.Types.ObjectId()
-      })
-      const res = await createRole.save()
-      result.data = res
-      return Promise.resolve(result)
-    }
-  }
-
-  async createPermission(permission:PermissionDto) {
-    const result = {
-      isSuccess: true,
-      message: '请求成功',
-      data: null
-    }
-
-    const createRole = new this.permissionModel({
-      _id: new mongoose.Types.ObjectId(),
-      parentId: permission.level===1?null:permission.parentId,
-      name: permission.name,
-      path: permission.path,
-      type: permission.type,
-      remark: permission.remark,
-      status: permission.status,
-      level: permission.level,
-      sort: permission.sort
-    })
-    const res = await createRole.save()
-    result.data = res
-    return Promise.resolve(result)
+  /** 根据用户account查找 */
+  async findUserByAccount(account: string): Promise<User | undefined> {
+    return this.userModel.findOne({
+      account
+    }).exec()
   }
 }

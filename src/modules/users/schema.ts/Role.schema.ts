@@ -3,11 +3,8 @@ import mongoose, { HydratedDocument } from 'mongoose';
 
 export type RoleDocument = HydratedDocument<Role>;
 
-@Schema()
+@Schema({ collection: 'roles' })
 export class Role {
-  // 角色id
-  @Prop({type: mongoose.Schema.Types.ObjectId})
-  _id: mongoose.Types.ObjectId = new mongoose.Types.ObjectId();
   // 角色名称
   @Prop({required: true, unique: true, index: true})
   name: string;

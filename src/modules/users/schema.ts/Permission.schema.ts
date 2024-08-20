@@ -1,23 +1,16 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { UUID } from 'crypto';
 import mongoose, { HydratedDocument } from 'mongoose';
 
 export type PermissionDocument = HydratedDocument<Permission>;
 
-@Schema()
+@Schema({ collection: 'permissions' })
 export class Permission {
-  // 权限id
-  @Prop({type: mongoose.Schema.Types.ObjectId, required: true, index: true})
-  _id: mongoose.Types.ObjectId = new mongoose.Types.ObjectId();
   // 父id
-  @Prop({type: mongoose.Schema.Types.ObjectId, required: true, default: null, index: true})
+  @Prop({type: mongoose.Schema.Types.ObjectId, required: false, default: null, index: true})
   parentId: mongoose.Types.ObjectId | null;
   // 权限名称
   @Prop({ required: true })
   name: string;
-  // 备注
-  @Prop({ default: null })
-  remark: string;
   // 权限路径
   @Prop({ required: true })
   path: string;
@@ -27,13 +20,18 @@ export class Permission {
   // 菜单icon
   @Prop({ default: null })
   icon: string;
-  @Prop({required: true, default: 1})
   // 状态 禁用/启用
+  @Prop({ default: 1 })
   status: string;
+  // 排序
   @Prop({ required: true })
   sort: number;
+  // 层级
   @Prop({ required: true })
   level: number;
+  // 备注
+  @Prop({ default: null })
+  remark: string;
 }
 
 export const PermissionSchema = SchemaFactory.createForClass(Permission);

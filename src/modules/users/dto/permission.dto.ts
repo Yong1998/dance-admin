@@ -3,10 +3,9 @@ export class PermissionDto {
   name: string;
   icon: string;
   path: string;
-  type: string;
+  type: "menu" | "page" | "api" | "button";
   sort: number;
   status: number;
   remark: string;
-
   level: number;
 }

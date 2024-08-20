@@ -21,6 +21,8 @@
   使用守卫Guard - authGuard
 
   自定义public装饰器, 允许白名单接口如创建用户接口, 登录接口访问 isPublic
+
+4. swagger 接入   
 ```
 
 待完成功能
@@ -32,14 +34,31 @@ email
 Role 角色表
 Permission 权限表
 
-1. 用户注册/登录/权限
-   1.1 注册接口 create
-   account password username email
+1.用户
+  1.1 注册接口 auth/register (已完成)
+  1.2 登录接口 auth/login (已完成)
+  1.3 接入jwt-token校验 (已完成)
+  1.4 创建用户 (已完成)
+  1.5 获取列表 (已完成)
+  1.6 获取用户 (已完成)
+  1.7 删除用户 (已完成)
+  1.8 修改密码 (已完成)
+  1.9 添加用户 (已完成)
+  1.10 更新用户 (已完成)
 
-   1.2 登录 login jwt鉴权
-   account password
+2. 角色/权限管理 
+    2.1 创建角色接口
+        获取角色列表
+        查询角色
+        更新角色
+        授权角色用户
 
-   1.3 重置密码 resetPassword
-   id oldPassword newPassword
 
-   1.4 权限设计 - 授权(RBAC)
+
+        授权权限接口
+          获取权限菜单
+    2.2 创建权限接口  
+          
+     
+
+

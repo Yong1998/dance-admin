@@ -1,7 +1,17 @@
 declare namespace Serv {
-  interface Res<T = any> {
-    isSuccess: boolean,
+  interface IRes<T = any> {
     message: string,
-    data: T | null
+    code: number,
+    data?: T
   };
+
+  interface IAuthUser {
+    uid: string
+    pv: number
+    /** 过期时间 */
+    exp?: number
+    /** 签发时间 */
+    iat?: number
+    roles?: string[]
+  }
 }

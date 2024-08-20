@@ -1,83 +1,63 @@
-import { Body, Controller, Post, Res, HttpStatus, HttpException, UseInterceptors, Get, UseGuards, Query } from "@nestjs/common";
+import { Body, Controller, Post, HttpStatus, HttpException, Get, Query, Param, Put, Delete, ParseArrayPipe } from "@nestjs/common";
 import { UserService } from "./user.service";
-import { UserCreateDto, UserLoginDto, UserResetPasswordDto } from "./dto/user.dto";
+import { UserDto, UserPasswordDto, UserQueryDto, UserUpdateDto} from "./dto/user.dto";
+import {PermissionDto} from './dto/permission.dto'
 import { isPublic } from "../auth/auth.decorator";
-import * as mongoose from 'mongoose';
+import { ApiOperation, ApiTags, ApiParam } from "@nestjs/swagger";
+import { IdParam } from "~/decorator/id-param.decorator";
 
+@ApiTags('system-用户模块')
 @Controller('user')
 export class UserController {
   constructor(private userService: UserService) {}
+  // @isPublic()
+  // @Get('/test')
+  // async test() {
+  //   return 'Hello World!'
+  // }
 
-  @isPublic()
-  @Post('create')
-  async create(@Body() user: UserCreateDto) {
-    const result = await this.userService.createUser(user)
-    if(result.isSuccess) {
-      return result.data
-    } else {
-      throw new HttpException(result, HttpStatus.BAD_REQUEST)
-    }
+  // @isPublic()
+  // @Get('/setRandomUsers')
+  // async setRandomUsers(@Query('num') num: number) { 
+  //   return this.userService.setRandomUsers(num)
+  // }
+
+  @Post('/create')
+  @ApiOperation({summary: '创建用户'})
+  async create(@Body() user: UserDto): Promise<void> {
+    await this.userService.create(user)
   }
 
-  @isPublic()
-  @Post('login')
-  async login(@Body() params: UserLoginDto) {
-    const result = await this.userService.login(params)
-    if(result.isSuccess) {
-      return result.data
-    } else {
-      throw new HttpException(result, HttpStatus.BAD_REQUEST)
-    }
-  }
-
-  @Post('resetPassword')
-  async resetPassword(@Body() params: UserResetPasswordDto) {
-    const result = await this.userService.resetPassword(params)
-    if(result.isSuccess) {
-      return result.data
-    } else {
-      throw new HttpException(result, HttpStatus.BAD_REQUEST)
-    }
-  }
-
-
-  @isPublic()
-  @Get('/test')
-  async test() {
-    return 'Hello World!'
+  @Get('/list')
+  @ApiOperation({summary: '用户列表'})
+  async list(@Query() dto: UserQueryDto) {
+    return this.userService.list(dto)
   }
 
   
-  @isPublic()
-  @Post('/update/roles')
-  async createPermission(@Body('userId') userId: string, @Body('roleIds') roleIds: mongoose.Schema.Types.ObjectId[]) {
-    const result = await this.userService.updateRole(userId, roleIds)
-    if(result.isSuccess) {
-      return result.data
-    } else {
-      throw new HttpException(result, HttpStatus.BAD_REQUEST)
-    }
+  @Get(':id')
+  @ApiOperation({summary: '查询用户'})
+  async query(@Param('id') id: string) {
+    return this.userService.info(id)
+  }
+
+  @Put(':id')
+  @ApiOperation({summary: '更新用户'})
+  async update(@Param('id') id: string, @Body() user: UserUpdateDto): Promise<void> {
+    await this.userService.update(id, user)
+  }  
+
+  @Delete(':id')
+  @ApiOperation({summary: '删除用户'})
+  @ApiParam({ name: 'id', type: String, schema: { oneOf: [{ type: 'string' }] } })
+  async delete(@Param('id', new ParseArrayPipe({ items: String, separator: ',' })) ids: string[]) : Promise<void> {
+    await this.userService.delete(ids)
   }
 
   @isPublic()
-  @Get('/query/user')
-  async queryUser(@Query('userId') userId: string) {
-    const result = await this.userService.queryUser(userId)
-    if(result.isSuccess) {
-      return result.data
-    } else {
-      throw new HttpException(result, HttpStatus.BAD_REQUEST)
-    }
-  } 
-
-  @isPublic()
-  @Post('create/role')
-  async createRole(@Body() role: any) {
-    const result = await this.userService.createRole(role)
-    if(result.isSuccess) {
-      return result.data
-    } else {
-      throw new HttpException(result, HttpStatus.BAD_REQUEST)
-    }
+  @Post(':id/password')
+  @ApiOperation({ summary: '更改用户密码' })
+  async password(@Param('id') id: string, @Body() dto: UserPasswordDto): Promise<void> {
+    await this.userService.forceUpdatePassword(id, dto.password)
   }
 }
