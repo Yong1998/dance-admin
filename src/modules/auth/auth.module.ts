@@ -8,17 +8,19 @@ import { AuthController } from "./auth.controller";
 import { UserModule } from "../users/user.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ConfigKeyPaths, ISecurityConfig } from "~/config";
+// import { TokenService } from "./services/token.service";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { UserAccessEntity } from "./entities/access-token.entities";
 import { TokenService } from "./services/token.service";
-import { MongooseModule } from "@nestjs/mongoose";
-import { UatSchema, UserAccessToken } from "./schema/access-token.schema";
-import { UrtSchema, UserRefreshToken } from "./schema/refresh-token.schema";
+import { RefreshTokenEntity } from "./entities/refresh-token.entities";
+import { AccountController } from "./controllers/account.controller";
+import { PermModule } from "../system/permission/perm.module";
+import { RoleModule } from "../system/role/role.module";
+import { RoleService } from "../system/role/role.service";
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: UserAccessToken.name, schema: UatSchema },
-      { name: UserRefreshToken.name, schema: UrtSchema }
-    ]), // 注册模型
+    TypeOrmModule.forFeature([UserAccessEntity, RefreshTokenEntity]),
     PassportModule, 
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -33,11 +35,12 @@ import { UrtSchema, UserRefreshToken } from "./schema/refresh-token.schema";
       inject: [ConfigService]
     }), 
     UserModule,
-   
+    PermModule,
+    RoleModule
   ],
-  providers: [AuthService, JwtStrategy, TokenService],
-  controllers: [AuthController],
-  exports: [AuthService, JwtModule, TokenService],
+  providers: [AuthService, RoleService, TokenService, JwtStrategy],
+  controllers: [AuthController, AccountController],
+  exports: [TypeOrmModule, JwtModule, AuthService, TokenService],
 })
 
 export class AuthModule {}

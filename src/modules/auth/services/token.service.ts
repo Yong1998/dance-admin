@@ -1,14 +1,16 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { UserAccessToken } from "../schema/access-token.schema";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
 import { ISecurityConfig, SecurityConfig } from "~/config";
 import * as dayjs from "dayjs";
 import { generateUUID } from "~/utils/tool.uitl";
-import { UserRefreshToken } from "../schema/refresh-token.schema";
+import { RefreshTokenEntity } from "../entities/refresh-token.entities";
+import { UserAccessEntity } from "../entities/access-token.entities";
+import { UserEntity } from "~/modules/users/user.entity";
+import { RoleEntity } from "~/modules/system/role/role.entity";
+import { StoreEntity } from "~/modules/system/store/store.entity";
+import { RoleService } from "~/modules/system/role/role.service";
 
-interface IGenerateToken {
+export interface IGenerateToken {
   accessToken?: string
   refreshToken?: string
 }
@@ -17,38 +19,35 @@ interface IGenerateToken {
 export class TokenService {
   constructor(
     private jwtService: JwtService, 
+    private roleService: RoleService,
     @Inject(SecurityConfig.KEY) private readonly securityConfig: ISecurityConfig,
-    @InjectModel(UserAccessToken.name) private readonly tokenModel: Model<UserAccessToken>,
-    @InjectModel(UserRefreshToken.name) private readonly refreshTokenModel: Model<UserRefreshToken>
   ) {}
 
-  async generateToken(uid: string, roles: string[]): Promise<IGenerateToken> {
+  async generateToken(pl: {uid: number, storeId?: number, roles?: string[]}): Promise<IGenerateToken> {
     const payLoad: Serv.IAuthUser = {
-      uid,
-      roles,
-      pv: 1,
+      userId: pl.uid,
+      storeId: pl.storeId,
+      roles: pl.roles,
     }
 
     const jwtSign = await this.jwtService.signAsync(payLoad)
 
-    const tokens = {
-      value: jwtSign,
-      expiredAt: dayjs().add(this.securityConfig.jwtExpire, 'second').toDate(),
-    }
+    const tokens = new UserAccessEntity()
+    tokens.value = jwtSign
+    tokens.user = { id: pl.uid } as UserEntity
+    tokens.store = { id: pl.storeId } as StoreEntity
+    tokens.expired_at = dayjs().add(this.securityConfig.jwtExpire, 'second').toDate()
+    await tokens.save()
 
-    const token = new this.tokenModel(tokens)
-    await token.save()
-  
-
-    const refreshToken = await this.generateRefreshToken(jwtSign, dayjs())
-
+    const refreshToken = await this.generateRefreshToken(tokens, dayjs())
     return {
       accessToken: jwtSign,
-      refreshToken: refreshToken
+      refreshToken,
     }
+  
   }
 
-  async generateRefreshToken(accessToken:string, now: dayjs.Dayjs) {
+  async generateRefreshToken(tokens:UserAccessEntity, now: dayjs.Dayjs) {
     const payLoad = {
       uuid: generateUUID(),
     }
@@ -56,15 +55,30 @@ export class TokenService {
       secret: this.securityConfig.refreshSecret
     })
 
-    const refreshTokens = {
-      value: jwtSign,
-      expiredAt: now.add(this.securityConfig.refreshExpire, 'second').toDate(),
-      accessToken
-    }
-    const refreshToken = new this.refreshTokenModel(refreshTokens)
-    await refreshToken.save()
+    const refreshTokens = new RefreshTokenEntity()
+    refreshTokens.accessToken = tokens
+    refreshTokens.value = jwtSign
+    refreshTokens.expired_at = now.add(this.securityConfig.refreshExpire, 'second').toDate()
+    await refreshTokens.save()
     
     return jwtSign
+  }
+
+  async refreshTokens(accessToken: UserAccessEntity): Promise<IGenerateToken> {
+    const {user, refreshToken, store} = accessToken
+    if(refreshToken) {
+      const now = dayjs()
+      if(now.isAfter(refreshToken.expired_at)) {
+        return void 0
+      }
+
+      const roleIds = await this.roleService.getRoleIdByUser(user.id, store.id)
+      const roleValues = await this.roleService.getRoleValues(roleIds)
+      const token = await this.generateToken({ uid: user.id, storeId: store.id, roles: roleValues })
+      await accessToken.remove()
+      return token
+    }
+    return void 0
   }
 
   /** 检查token是否存在 且处于有效期内 */
@@ -72,7 +86,11 @@ export class TokenService {
     let isValid = false
     try {
       await this.verifyToken(token)
-      const res = await this.tokenModel.findOne({value: token}).exec()
+      const res = await UserAccessEntity.findOne({
+        where: { value: token },
+        relations: ['user'],
+        cache: true
+      })
       isValid = Boolean(res)
     } catch (error) {}
     return isValid

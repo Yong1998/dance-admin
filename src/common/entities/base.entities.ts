@@ -20,8 +20,8 @@ export abstract class BaseSchema {
   )
   public _id: string;
 
-  @Prop({ type: 'string', default: 'isActive', enum: ['isDeleted', 'isActive'] })
-  isActive: 'isDeleted' | 'isActive';
+  @Prop({ type: 'string', default: 1, enum: [0, 1] })
+  isActive: 0 | 1;
 
   // 自动创建时间
   @Prop({ type: 'Date', default: Date.now })

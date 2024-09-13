@@ -4,7 +4,7 @@ export enum ErrorEnum {
 
   SYSTEM_USER_EXISTS = '1001:系统用户已存在',
   INVALID_VERIFICATION_CODE = '1002:验证码填写有误',
-  INVALID_USERNAME_PASSWORD = '1003:用户名密码有误',
+  INVALID_USERNAME_PASSWORD = '1003:用户密码有误',
   NODE_ROUTE_EXISTS = '1004:节点路由已存在',
   PERMISSION_REQUIRES_PARENT = '1005:权限必须包含父节点',
   ILLEGAL_OPERATION_DIRECTORY_PARENT = '1006:非法操作：该节点仅支持目录类型父节点',
@@ -23,6 +23,15 @@ export enum ErrorEnum {
   DEPARTMENT_NOT_FOUND = '1019:部门不存在',
   PARAMETER_CONFIG_KEY_EXISTS = '1022:参数配置键值对已存在',
   DEFAULT_ROLE_NOT_FOUND = '1023:所分配的默认角色不存在',
+
+  ROLE_NOT_FOUND = '1031:角色不存在',
+  ROLE_EXISTS = '1032:角色已存在',
+
+  PERMISSION_NOT_FOUND = '1041:权限不存在',
+  PERMISSION_EXISTS = '1042:权限已存在',
+
+  STORE_NOT_FOUND = '1051:店铺不存在',
+  STORE_EXISTS = '1052:店铺已存在',
 
   INVALID_LOGIN = '1101:登录无效，请重新登录',
   NO_PERMISSION = '1102:无权限访问',

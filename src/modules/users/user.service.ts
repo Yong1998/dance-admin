@@ -1,152 +1,119 @@
 import { Injectable } from '@nestjs/common';
 import { UserDto, UserQueryDto, UserUpdateDto } from './dto/user.dto';
-import { User } from './schema.ts/User.schema';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt'
-import { isEmpty } from 'lodash';
-// import { AuthService } from '../auth/auth.service';
-import { Role } from './schema.ts/Role.schema';
-import * as mongoose from 'mongoose';
-import { PermissionDto } from './dto/permission.dto';
-import { Permission } from './schema.ts/Permission.schema';
+import { isEmpty, isNil } from 'lodash';
 import { RegisterDto } from '../auth/dto/auth.dto';
 import { BusinessException } from 'src/common/exceptions/biz.exception';
 import { ErrorEnum } from 'src/constants/error-code.constant';
-import { generateUUID, sleep } from '~/utils/tool.uitl';
+import { generateUUID } from '~/utils/tool.uitl';
+import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
+import { UserEntity } from './user.entity';
+import { EntityManager, Repository, In, Like } from 'typeorm';
+import { RoleEntity } from '../system/role/role.entity';
+import { Pagination } from '~/helper/paginate/pagination';
+import { paginate } from '~/helper/paginate';
 
 @Injectable()
 export class UserService {
   constructor(
-    @InjectModel(User.name) private userModel: Model<User>,
-    @InjectModel(Role.name) private roleModel: Model<Role>,
-    @InjectModel(Permission.name) private permissionModel: Model<Permission>,
+    @InjectEntityManager() private entityManager: EntityManager,
+    @InjectRepository(UserEntity) private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(RoleEntity) private readonly roleRepository: Repository<RoleEntity>
   ) {}
 
   async register({account, ...data}:RegisterDto): Promise<void> {
-    const exists = await this.userModel.findOne({account}).exec()
-    if(exists) {
-      throw new BusinessException(ErrorEnum.SYSTEM_USER_EXISTS)
-    } 
-
-    const passwordHash = await bcrypt.hash(data.password, 10)
-    const u = {
-      account,
-      username: data.username,
-      passwordHash,
-    }
-    const user = new this.userModel(u)
-    await user.save()
-  }
-
-  async create({account, password, roles, ...user}: UserDto): Promise<void> {
-    const exists = await this.userModel.findOne({account: account}).exec()
+    const exists = await this.userRepository.findOneBy({account})
     if(!isEmpty(exists)) {
       throw new BusinessException(ErrorEnum.SYSTEM_USER_EXISTS)
     } 
-    if(!password) {
-      // 默认密码
-      password = '12345678'
-    }
 
-    const passwordHash = await bcrypt.hash(password, 10)
-    const u = {
-      account,
-      passwordHash,
-      roles: roles || [],
-      ...user
-    }
-    const newUser = new this.userModel(u)
-    await newUser.save()
+    await this.entityManager.transaction(async (manager: EntityManager) => {
+      const passwordHash = await bcrypt.hash(data.password, 10)
+      const u = manager.create(UserEntity, {
+        account,
+        username: data.username,
+        passwordHash,
+      })
+      
+      const user = await manager.save(u)
+      return user
+    })
   }
 
-  async info(id:string): Promise<User> {
-    const user = await this.userModel.findById(id).exec()
+  async create({account, password, ...user}: UserDto): Promise<void> {
+    const exists = await this.userRepository.findOneBy({account: account})
+    if(!isEmpty(exists)) {
+      throw new BusinessException(ErrorEnum.SYSTEM_USER_EXISTS)
+    } 
+    await this.entityManager.transaction(async (manager) => {
+      let passwordHash = ''
+      if(isEmpty(password)) {
+        password = '12345678'
+        passwordHash = await bcrypt.hash(password, 10)
+      } else {
+        passwordHash = await bcrypt.hash(password, 10)
+      }
+
+      const u = manager.create(UserEntity, {
+        account,
+        passwordHash,
+        ...user,
+      })
+
+      const result = await manager.save(u)
+      return result
+    })
+  }
+
+  async info(id:number): Promise<UserEntity> {
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.roles', 'roles')
+      .where('user.id = :id', { id })
+      .getOne()
     delete user.passwordHash
+    delete user.accessTokens
     return user
   }
 
-  async list ({ page = 1, pageSize = 10 }: UserQueryDto) {
-
-    // 普通查询分页
-    page = Number(page)
-    pageSize = Number(pageSize)
-    const skip = (page - 1) * pageSize
-    // // 获取上一页最后一条数据
-    // const lastId = await this.userModel.findOne().sort({_id: 1}).skip(skip).exec() 
-    // const result = await this.userModel.find({
-    //   _id: { $gte: lastId._id?lastId._id:null }
-    // }).sort({_id: 1}).limit(pageSize).exec()
-
-    // 使用聚合查询实现上述功能
-    const lastId = await this.userModel.findOne().sort({_id: 1}).skip(skip).exec()
-    const result = await this.userModel.aggregate([
-      {
-        $match: {
-          _id: { $gte: lastId._id?lastId._id:null }
-        }
-      },
-      {
-        $sort: {
-          _id: 1
-        }
-      },
-      {
-        $limit: pageSize
-      }
-    ]).exec()
-  
-
-
-    const total = await this.userModel.countDocuments().exec()
-    return {
-      list: result,
-      total
-    }
+  async list ({ page, pageSize, username, nickname, email, status }: UserQueryDto): Promise<Pagination<UserEntity>> {
+    const queryBuilder = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.roles', 'role')
+      .where({
+        ...(username?{username: Like(`%${username}%`)}:null),
+        ...(nickname?{nickname: Like(`%${nickname}%`)}:null),
+        ...(email?{email: Like(`%${email}%`)}:null),
+        ...(!isNil(status)?{status}:null)
+      })
+    return paginate<UserEntity>(queryBuilder, { page, pageSize })
   }
 
-  async update(id: string, user: UserUpdateDto): Promise<void> {
-    const u = await this.userModel.findById(id).exec()
-    if(!u) {
-      throw new BusinessException(ErrorEnum.USER_NOT_FOUND)
-    }
-    const { account, password, roles, ...data } = user
-    if(account) {
-      const exists = await this.userModel.findOne({account}).exec()
-      if(exists && exists._id.toString() !== id) {
-        throw new BusinessException(ErrorEnum.SYSTEM_USER_EXISTS)
+  async update(id: number, {password, status, ...data}: UserUpdateDto): Promise<void> {
+    await this.entityManager.transaction(async (manager) => {
+      let passwordHash = ''
+      if(password) {
+        passwordHash = await bcrypt.hash(password, 10)
       }
-      u.account = account
-    }
-    if(password) {
-      u.passwordHash = await bcrypt.hash(password, 10)
-    }
-    if(roles) {
-      u.roles = roles
-    }
-    for(const key in data) {
-      u[key] = data[key]
-    }
-    await u.save()
+      await manager.update(UserEntity, id, {
+        ...data,
+        passwordHash,
+        status
+      })
+    })
   }
 
   async delete(ids: string[]): Promise<void> {
-    await this.userModel.deleteMany({_id: { $in: ids }}).exec()
+    await this.userRepository.delete(ids)
   }
 
-  async forceUpdatePassword(id: string, password: string): Promise<void> {
-    const u = await this.userModel.findById(id).exec()
-    if(!u) {
-      throw new BusinessException(ErrorEnum.USER_NOT_FOUND)
-    }
-    u.passwordHash = await bcrypt.hash(password, 10)
-    await u.save()
+  async forceUpdatePassword(id: number, password: string): Promise<void> {
+    // const u = await this.userRepository.findOneBy({id})
+    const newPassword = await bcrypt.hash(password, 10)
+    await this.userRepository.update({id}, { passwordHash: newPassword })
   }
 
-
-
-
-  /** 插入随机用户数据 */
+  // /** 插入随机用户数据 */
   async setRandomUsers(number = 10) {
     const users = []
     for(let i = 0; i < number; i++) {
@@ -157,18 +124,19 @@ export class UserService {
         passwordHash: await bcrypt.hash('123456', 10),
         phone: `1325055501/${i}`,
         email: '',
-        roles: [],
+        roleIds: [1],
         status: 1
       }
       users.push(user)
     }
-    const res = await this.userModel.insertMany(users)
+    // 插入多个用户
+    const res = await this.userRepository.insert(users)
     return res
   }
-  /** 根据用户account查找 */
-  async findUserByAccount(account: string): Promise<User | undefined> {
-    return this.userModel.findOne({
-      account
-    }).exec()
-  }
+  // /** 根据用户account查找 */
+  // async findUserByAccount(account: string): Promise<User | undefined> {
+  //   return this.userModel.findOne({
+  //     account
+  //   }).exec()
+  // }
 }

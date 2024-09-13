@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { UserModule } from 'src/modules/users/user.module';
 import { JwtAuthGuard } from '~/modules/auth/guards/jwt-auth.guard';
 import { AuthModule } from 'src/modules/auth/auth.module';
@@ -8,6 +7,8 @@ import { AllExceptionsFilter } from 'src/common/filters/any-exception.filter';
 import { TransformInterceptor } from 'src/common/interceptors/transform.interceptor';
 import { ConfigModule } from '@nestjs/config';
 import config from '~/config';
+import { SystemModule } from './modules/system/system.module';
+import { DatabaseModule } from './shared/database/database.module';
 
 @Module({
   imports: [
@@ -19,9 +20,10 @@ import config from '~/config';
       load: [...Object.values(config)],
     }),
 
-    MongooseModule.forRoot('mongodb://localhost:27017/dance-admin'),
+    DatabaseModule,
     AuthModule,
-    UserModule
+    UserModule,
+    SystemModule
   ],
   controllers: [],
   providers: [

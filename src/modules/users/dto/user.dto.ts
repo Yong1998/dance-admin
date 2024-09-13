@@ -6,10 +6,10 @@ import { isEmpty } from 'lodash'
 
 export class UserDto {
   @ApiProperty({ description: '登录账号', example: 'admin' })
-  @IsNotEmpty({ message: '账号/密码不能为空' })
   @MinLength(4)
   @MaxLength(20)
-  @IsString()
+  @IsString({ message: '账号必须为字符串' })
+  @IsNotEmpty({ message: '账号/密码不能为空' })
   account: string;
 
   @ApiProperty({ description: '登录密码', example: 'a123456' })
@@ -20,13 +20,13 @@ export class UserDto {
   password: string;
 
   @ApiProperty({ description: '用户名', example: '大定' })
+  @IsString({ message: '用户名必须为字符串' })
   @IsOptional()
-  @IsString()
   username: string;
   
   @ApiProperty({ description: '昵称', example: '昵称' })
+  @IsString({ message: '昵称必须为字符串' })
   @IsOptional()
-  @IsString()
   nickname: string;
 
   @ApiProperty({ description: '邮箱', example: '123.dev@qq.com' })
@@ -35,28 +35,30 @@ export class UserDto {
   email: string;
 
   @ApiProperty({ description: '头像' })
+  @IsString({message: '头像必须为字符串'})
   @IsOptional()
-  @IsString()
   avatar: string;
 
   @ApiProperty({ description: '手机号' })
+  @IsString({message: '手机号必须为字符串'})
   @IsOptional()
-  @IsString()
   phone: string;
   
   @ApiProperty({ description: '状态' })
   @IsIn([0, 1])
   status: number;
 
-  @ApiProperty({ description: '归属角色', type: [String] })
-  // @ArrayNotEmpty()
-  // @ArrayMinSize(1)
-  // @ArrayMaxSize(3)
-  roles: string[];
+  @ApiProperty({ description: '类型' })
+  @IsIn([1, 2, 3])
+  type: number;
+
+  // @ApiProperty({ description: '归属角色', type: [Number] })
+  // @ArrayNotEmpty({ message: '角色不能为空' })
+  // storeId: number[];
 
   @ApiProperty({ description: '备注' })
+  @IsString({message: '备注必须为字符串'})
   @IsOptional()
-  @IsString()
   remark?: string
 }
 

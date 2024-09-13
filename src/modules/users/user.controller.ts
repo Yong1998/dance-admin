@@ -1,10 +1,10 @@
 import { Body, Controller, Post, HttpStatus, HttpException, Get, Query, Param, Put, Delete, ParseArrayPipe } from "@nestjs/common";
 import { UserService } from "./user.service";
 import { UserDto, UserPasswordDto, UserQueryDto, UserUpdateDto} from "./dto/user.dto";
-import {PermissionDto} from './dto/permission.dto'
 import { isPublic } from "../auth/auth.decorator";
 import { ApiOperation, ApiTags, ApiParam } from "@nestjs/swagger";
 import { IdParam } from "~/decorator/id-param.decorator";
+import { AuthUser } from "../auth/decorators/auth-user.decorator";
 
 @ApiTags('system-用户模块')
 @Controller('user')
@@ -16,11 +16,10 @@ export class UserController {
   //   return 'Hello World!'
   // }
 
-  // @isPublic()
-  // @Get('/setRandomUsers')
-  // async setRandomUsers(@Query('num') num: number) { 
-  //   return this.userService.setRandomUsers(num)
-  // }
+  @Get('/setRandomUsers')
+  async setRandomUsers(@Query('num') num: number) { 
+    return this.userService.setRandomUsers(num)
+  }
 
   @Post('/create')
   @ApiOperation({summary: '创建用户'})
@@ -30,20 +29,20 @@ export class UserController {
 
   @Get('/list')
   @ApiOperation({summary: '用户列表'})
-  async list(@Query() dto: UserQueryDto) {
+  async list(@AuthUser() user, @Query() dto: UserQueryDto) {
+    console.log(`user ===>`, user)
     return this.userService.list(dto)
   }
 
-  
   @Get(':id')
   @ApiOperation({summary: '查询用户'})
-  async query(@Param('id') id: string) {
+  async query(@Param('id') id: number) {
     return this.userService.info(id)
   }
 
   @Put(':id')
   @ApiOperation({summary: '更新用户'})
-  async update(@Param('id') id: string, @Body() user: UserUpdateDto): Promise<void> {
+  async update(@Param('id') id: number, @Body() user: UserUpdateDto): Promise<void> {
     await this.userService.update(id, user)
   }  
 
@@ -54,10 +53,9 @@ export class UserController {
     await this.userService.delete(ids)
   }
 
-  @isPublic()
   @Post(':id/password')
   @ApiOperation({ summary: '更改用户密码' })
-  async password(@Param('id') id: string, @Body() dto: UserPasswordDto): Promise<void> {
+  async password(@Param('id') id: number, @Body() dto: UserPasswordDto): Promise<void> {
     await this.userService.forceUpdatePassword(id, dto.password)
   }
 }

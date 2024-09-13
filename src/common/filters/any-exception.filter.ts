@@ -14,14 +14,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name)
 
   constructor () {
-    // 注册捕获进程异常
-    process.on('unhandledRejection', (reason) => {
-      console.error('unhandledRejection: ', reason)
-    })
-
-    process.on('uncaughtException', (err) => {
-      console.error('uncaughtException: ', err)
-    })
+    this.registerCatchAllExceptionsHook()
   }
 
   catch(exception: unknown, host: ArgumentsHost) {
@@ -67,6 +60,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
     } else {
       return (exception as any)?.response?.message ?? (exception as myError)?.message ?? `${exception}`
     }
+  }
+
+  registerCatchAllExceptionsHook() {
+    process.on('unhandledRejection', (reason) => {
+      console.error('unhandledRejection: ', reason)
+    })
+
+    process.on('uncaughtException', (err) => {
+      console.error('uncaughtException: ', err)
+    })
   }
 
 }

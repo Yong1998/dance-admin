@@ -12,9 +12,9 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
-      whitelist: true,
+      whitelist: true, // 开启后 没有使用校验的DTO字段会被过滤掉undefined
       transformOptions: { enableImplicitConversion: true },
-      // forbidNonWhitelisted: true, // 禁止 无装饰器验证的数据通过
+      forbidNonWhitelisted: true, // 禁止 无装饰器验证的数据通过
       errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
       stopAtFirstError: true,
       exceptionFactory: errors =>
@@ -27,6 +27,16 @@ async function bootstrap() {
         ),
     }),
   )
+
+  app.use((err, req, res, next) => {
+    console.error(err);
+    res.status(500).json({
+      statusCode: 500,
+      timestamp: new Date().toISOString(),
+      path: req.url,
+      message: 'Internal Server Error',
+    });
+  });
 
 
   const swaggerOptions = new DocumentBuilder()
