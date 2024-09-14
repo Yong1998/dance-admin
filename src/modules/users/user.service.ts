@@ -76,16 +76,29 @@ export class UserService {
     return user
   }
 
-  async list ({ page, pageSize, username, nickname, email, status }: UserQueryDto): Promise<Pagination<UserEntity>> {
-    const queryBuilder = this.userRepository
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.roles', 'role')
-      .where({
-        ...(username?{username: Like(`%${username}%`)}:null),
-        ...(nickname?{nickname: Like(`%${nickname}%`)}:null),
-        ...(email?{email: Like(`%${email}%`)}:null),
-        ...(!isNil(status)?{status}:null)
-      })
+  async list ({storeId, type}: Serv.IAuthUser, { page, pageSize, username, nickname, email, status }: UserQueryDto): Promise<Pagination<UserEntity>> {
+    // 如果是商户用户，只能查看自己绑定店铺下的用户
+    // 如果是系统用户，可以查看所有用户
+    // todo...
+    //  管理员角色可以查看所有用户
+    //  商户管理员角色可以查看自己绑定店铺下的用户
+    const queryBuilder = this.userRepository.createQueryBuilder('sys_users')
+    if(type === 2) {
+      queryBuilder.leftJoin('sys_users.stores', 'stores')
+      queryBuilder.andWhere('stores.id = :storeId', { storeId })
+    }
+    if(!isNil(status)) {
+      queryBuilder.andWhere('sys_users.status = :status', { status })
+    }
+    if(username) {
+      queryBuilder.andWhere('sys_users.username like :username', { username: `%${username}%` })
+    }
+    if(nickname) {
+      queryBuilder.andWhere('sys_users.nickname like :nickname', { nickname: `%${nickname}%` })
+    }
+    if(email) {
+      queryBuilder.andWhere('sys_users.email like :email', { email: `%${email}%` })
+    }
     return paginate<UserEntity>(queryBuilder, { page, pageSize })
   }
 
@@ -113,7 +126,7 @@ export class UserService {
     await this.userRepository.update({id}, { passwordHash: newPassword })
   }
 
-  // /** 插入随机用户数据 */
+  /** 插入随机用户数据 */
   async setRandomUsers(number = 10) {
     const users = []
     for(let i = 0; i < number; i++) {
@@ -133,10 +146,4 @@ export class UserService {
     const res = await this.userRepository.insert(users)
     return res
   }
-  // /** 根据用户account查找 */
-  // async findUserByAccount(account: string): Promise<User | undefined> {
-  //   return this.userModel.findOne({
-  //     account
-  //   }).exec()
-  // }
 }

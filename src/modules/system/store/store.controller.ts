@@ -14,7 +14,7 @@ export class StoreController {
 
   @Post('login')
   async loginStore(@AuthUser() user: Serv.IAuthUser, @Body() dto:{storeId:number}) {
-    return this.storeService.loginStore(user.userId, dto.storeId)
+    return this.storeService.loginStore(user, dto.storeId)
   }
 
   @Post('create')

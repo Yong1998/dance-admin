@@ -4,11 +4,12 @@ import { PermService } from "./perm.service";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { PermEntity } from "./perm.entity";
 import { RoleModule } from "../role/role.module";
+import { UserStoreRoleEntity } from "../store/store.entity";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PermEntity]),
-    forwardRef(() => RoleModule)
+    TypeOrmModule.forFeature([PermEntity, UserStoreRoleEntity]),
+    forwardRef(() => RoleModule),
   ],
   controllers: [PermController],
   providers: [PermService],

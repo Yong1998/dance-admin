@@ -20,7 +20,8 @@ export class StoreService {
       @Inject() private readonly tokenService: TokenService
     ) {}
 
-    async loginStore(userId:number, storeId: number): Promise<string> {
+    async loginStore(user:Serv.IAuthUser, storeId: number): Promise<string> {
+      const {userId, type} = user
       // 获取店铺下用户的角色
       const roles = await this.userStoreRoleRepository
         .createQueryBuilder('user_store_roles')
@@ -30,7 +31,7 @@ export class StoreService {
         .getMany()
       const roleValues = roles.map(r => r.role.key)
       // 重新生成token
-      const token = await this.tokenService.generateToken({ uid: userId, storeId, roles: roleValues })
+      const token = await this.tokenService.generateToken({ uid: userId, storeId, type, roles: roleValues })
 
       return token.accessToken
     }

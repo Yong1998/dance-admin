@@ -24,10 +24,10 @@ export class UserAccessEntity extends BaseEntity {
   refreshToken!: RefreshTokenEntity
 
   @ManyToOne(() => UserEntity, user => user.accessTokens, { onDelete: 'CASCADE' })
-  @JoinColumn({name: 'userId' })
+  @JoinColumn({name: 'userId', referencedColumnName: 'id'})
   user!: UserEntity
 
   @ManyToOne(() => StoreEntity, store => store.accessTokens, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'storeId' })
+  @JoinColumn({ name: 'storeId', referencedColumnName: 'id' })
   store!: any
 }

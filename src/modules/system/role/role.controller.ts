@@ -26,14 +26,4 @@ export class RoleController {
   async query(@Param('id') id: number) {
     return this.roleService.info(id);
   }
-  
-  @Get('test')
-  @ApiOperation({summary: '测试'})
-  @isPublic()
-  async test() {
-    return 'test'
-  }
-
-  // 角色列表
-  // 删除角色
 }

@@ -38,24 +38,24 @@ export class StoreEntity extends CommonEntity {
 
 @Entity('user_store_roles') 
 export class UserStoreRoleEntity extends CommonEntity {
-  @Column()
+  @Column({ nullable: true })
   userId: number;
 
-  @Column()
+  @Column({ nullable: true })
   storeId: number;
 
-  @Column()
+  @Column({ nullable: true })
   roleId: number;
 
   @ManyToOne(() => UserEntity, user => user.stores)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: 'userId', referencedColumnName: 'id' })
   user: UserEntity;
 
   @ManyToOne(() => StoreEntity, store => store.users)
-  @JoinColumn({ name: 'storeId' })
+  @JoinColumn({ name: 'storeId', referencedColumnName: 'id' })
   store: StoreEntity;
 
   @ManyToOne(() => RoleEntity, role => role.stores)
-  @JoinColumn({ name: 'roleId' })
+  @JoinColumn({ name: 'roleId', referencedColumnName: 'id' })
   role: RoleEntity;
 }

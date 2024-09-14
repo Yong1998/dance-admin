@@ -73,6 +73,9 @@ todo....
      
 
 学习记录
-  数据库中列类型int和tinyint的区别
-    tinyint：用于存储小整数值，例如布尔值（true/false）或枚举值。
-    int：用于存储较大的整数值，例如计数、日期等。
+  1. 数据库中列类型int和tinyint的区别
+   `tinyint：用于存储小整数值，例如布尔值（true/false）或枚举值。 int：用于存储较大的整数值，例如计数、日期等。`
+
+  2. Get(':id') 和 @Get('/aaa') 谁会被优先访问
+    `在 NestJS 中，路由处理程序的匹配是基于它们在控制器中的声明顺序的。如果你在 @Get('/aaa') 之后声明了 @Get(':id')，那么当你访问 /aaa 时，NestJS 会首先看到 @Get(':id')，并将 aaa 作为 id 参数的值。`
+

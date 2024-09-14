@@ -22,7 +22,13 @@ export class AuthService {
   ) {}
     
   async login(account: string, password: string):Promise<string> {
-    const user = await this.userRepository.findOneBy({account})
+    const user = await this.userRepository.createQueryBuilder('sys_users')
+      .leftJoinAndSelect('sys_users.roles', 'roles')
+      .where('sys_users.account = :account', {account})
+      .getOne()
+
+      console.log(`user ===>`, user)
+
     if(isEmpty(user)) {
       throw new BusinessException(ErrorEnum.INVALID_USERNAME_PASSWORD)
     }
@@ -31,13 +37,12 @@ export class AuthService {
       throw new BusinessException(ErrorEnum.INVALID_USERNAME_PASSWORD)
     }
 
-    const token = await this.tokenService.generateToken({uid: user.id, roles: user.roles.map(role => role.key)})
-
+    const roles = user.roles.map(role => role.key)
+    const token = await this.tokenService.generateToken({uid: user.id, type: user.type, roles})
     return token.accessToken
   }
 
-  async getMenus(userId: number, storeId: number) {
-    return this.permService.getPermissions(userId, storeId)
-  }
-
+  // async getMenus(userId: number, storeId: number) {
+  //   return this.permService.getPermissions(userId, storeId)
+  // }
 }

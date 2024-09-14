@@ -23,19 +23,20 @@ export class TokenService {
     @Inject(SecurityConfig.KEY) private readonly securityConfig: ISecurityConfig,
   ) {}
 
-  async generateToken(pl: {uid: number, storeId?: number, roles?: string[]}): Promise<IGenerateToken> {
+  async generateToken(pl: {uid: number, type: number, storeId?: number, roles?: string[]}): Promise<IGenerateToken> {
     const payLoad: Serv.IAuthUser = {
       userId: pl.uid,
+      type: pl.type,
       storeId: pl.storeId,
       roles: pl.roles,
     }
-
+    console.log(`payLoad ===>`, payLoad)
     const jwtSign = await this.jwtService.signAsync(payLoad)
 
     const tokens = new UserAccessEntity()
     tokens.value = jwtSign
     tokens.user = { id: pl.uid } as UserEntity
-    tokens.store = { id: pl.storeId } as StoreEntity
+    pl.storeId && (tokens.store = { id: pl.storeId } as StoreEntity)
     tokens.expired_at = dayjs().add(this.securityConfig.jwtExpire, 'second').toDate()
     await tokens.save()
 
@@ -74,7 +75,7 @@ export class TokenService {
 
       const roleIds = await this.roleService.getRoleIdByUser(user.id, store.id)
       const roleValues = await this.roleService.getRoleValues(roleIds)
-      const token = await this.generateToken({ uid: user.id, storeId: store.id, roles: roleValues })
+      const token = await this.generateToken({ uid: user.id, type: user.type, storeId: store.id, roles: roleValues })
       await accessToken.remove()
       return token
     }

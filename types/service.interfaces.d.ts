@@ -6,12 +6,13 @@ declare namespace Serv {
   };
 
   interface IAuthUser {
-    userId: number
-    storeId?: number
+    userId: number;
+    type: number;
+    storeId?: number;
     roles?: any[]
     /** 过期时间 */
-    exp?: number
+    exp?: number;
     /** 签发时间 */
-    iat?: number
+    iat?: number;
   }
 }
